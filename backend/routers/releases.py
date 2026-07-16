@@ -23,7 +23,7 @@ class ReleaseRead(BaseModel):
     workspace_id: UUID
     evaluation_run_id: UUID
     recommendation: str
-    recommendation_reason: str
+    recommendation_reason: str | None = None
     critical_violation_rate: float | None
     decision_accuracy_pct: float | None
     scenario_coverage_pct: float | None
@@ -140,6 +140,18 @@ async def _enrich_release(db: AsyncSession, release: Release) -> ReleaseRead:
         }
         for s in sigs_result.scalars().all()
     ]
-    item = ReleaseRead.model_validate(release)
-    item.signatures = sigs
-    return item
+    # Build explicitly — avoids Pydantic touching the ORM `signatures` relationship
+    # which would trigger a lazy load and fail in async SQLAlchemy.
+    return ReleaseRead(
+        id=release.id,
+        workspace_id=release.workspace_id,
+        evaluation_run_id=release.evaluation_run_id,
+        recommendation=release.recommendation,
+        recommendation_reason=release.recommendation_reason,
+        critical_violation_rate=release.critical_violation_rate,
+        decision_accuracy_pct=release.decision_accuracy_pct,
+        scenario_coverage_pct=release.scenario_coverage_pct,
+        open_findings=release.open_findings,
+        status=release.status,
+        signatures=sigs,
+    )

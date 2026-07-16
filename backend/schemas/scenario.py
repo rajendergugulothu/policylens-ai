@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from uuid import UUID
-from typing import Literal
+from typing import Literal, Any
 
 
 ScenarioType = Literal["normal", "edge", "exception", "adversarial"]
@@ -15,8 +15,15 @@ class ScenarioRead(BaseModel):
     title: str
     customer_message: str
     scenario_type: str
-    rule_ids_tested: list[str]
+    rule_ids_tested: list[str] = []
     expected_action: str
+
+    @field_validator("rule_ids_tested", mode="before")
+    @classmethod
+    def coerce_uuids_to_str(cls, v: Any) -> list[str]:
+        if not v:
+            return []
+        return [str(item) for item in v]
     expected_explanation: str
     risk_tier: str
     is_custom: bool

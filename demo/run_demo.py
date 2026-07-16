@@ -32,14 +32,14 @@ BOLD   = "\033[1m"
 DIM    = "\033[2m"
 RESET  = "\033[0m"
 
-def ok(msg):    print(f"{GREEN}  ✓ {msg}{RESET}")
-def fail(msg):  print(f"{RED}  ✗ {msg}{RESET}")
-def warn(msg):  print(f"{YELLOW}  ⚠ {msg}{RESET}")
+def ok(msg):    print(f"{GREEN}  [OK] {msg}{RESET}")
+def fail(msg):  print(f"{RED}  [FAIL] {msg}{RESET}")
+def warn(msg):  print(f"{YELLOW}  [!] {msg}{RESET}")
 def info(msg):  print(f"{DIM}    {msg}{RESET}")
 def header(msg):
-    print(f"\n{BOLD}{CYAN}{'─' * 60}{RESET}")
+    print(f"\n{BOLD}{CYAN}{'-' * 60}{RESET}")
     print(f"{BOLD}{CYAN}  {msg}{RESET}")
-    print(f"{BOLD}{CYAN}{'─' * 60}{RESET}")
+    print(f"{BOLD}{CYAN}{'-' * 60}{RESET}")
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ async def poll_evaluation(client: httpx.AsyncClient, run_id: str, timeout: int =
 # ─── Demo steps ───────────────────────────────────────────────────────────────
 
 async def run_demo():
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=180.0) as client:
 
         await check_services(client)
 
@@ -97,14 +97,15 @@ async def run_demo():
         # ── Step 2: Upload policy ─────────────────────────────────────────────
         header("STEP 2 — Upload ShopFast v4.2 Policy")
         policy_text = POLICY_FILE.read_text(encoding="utf-8")
-        r = await client.post(f"{BASE_URL}/policies/upload/text", json={
+        r = await client.post(f"{BASE_URL}/policies/upload/text", data={
             "workspace_id": workspace_id,
             "title": "ShopFast Return & Refund Policy v4.2",
-            "content": policy_text,
-            "version_label": "v4.2",
+            "raw_text": policy_text,
+            "uploaded_by": "demo-runner",
         })
         r.raise_for_status()
-        policy = r.json()
+        upload_resp = r.json()
+        policy = upload_resp["policy"]
         policy_id = policy["id"]
         ok(f"Policy uploaded: {policy['title']}")
         info(f"Characters: {len(policy_text):,}  |  ID: {policy_id}")
@@ -113,6 +114,8 @@ async def run_demo():
         header("STEP 3 — Extract Policy Rules (Claude API)")
         print(f"  {DIM}Calling Claude API to extract structured rules...{RESET}")
         r = await client.post(f"{BASE_URL}/rules/extract/{policy_id}?actor=demo-runner")
+        if not r.is_success:
+            print(f"  Extraction error: {r.status_code} — {r.text}")
         r.raise_for_status()
         extraction = r.json()
         ok(f"Extracted {extraction['rules_extracted']} rules")
@@ -185,9 +188,11 @@ async def run_demo():
         header("STEP 7 — Generate Test Scenarios (Claude API)")
         print(f"  {DIM}Calling Claude API to generate normal, edge, and adversarial scenarios...{RESET}")
         r = await client.post(f"{BASE_URL}/scenarios/generate/{policy_id}?actor=demo-runner")
+        if not r.is_success:
+            print(f"  Scenario gen error: {r.status_code} — {r.text}")
         r.raise_for_status()
         gen_result = r.json()
-        ok(f"Generated {gen_result.get('scenarios_generated', '?')} scenarios")
+        ok(f"Generated {gen_result.get('scenarios_created', '?')} scenarios")
 
         # ── Step 8: Print scenario list ───────────────────────────────────────
         header("STEP 8 — Scenario Inventory")
@@ -279,6 +284,8 @@ async def run_demo():
             "evaluation_run_id": run_id,
             "created_by": "demo-runner",
         })
+        if not r.is_success:
+            print(f"  Release error: {r.status_code} — {r.text[:500]}")
         r.raise_for_status()
         release = r.json()
         release_id = release["id"]

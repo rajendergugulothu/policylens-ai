@@ -35,11 +35,12 @@ Generate scenarios in these categories:
 - exception: a case where an exception clause overrides the main rule (only if the rule has an exception)
 - adversarial: a single customer message that involves 2 or more rules simultaneously, designed to expose conflicts or gaps in agent logic
 
-Coverage targets:
-- At least 1 normal scenario per rule
-- At least 1 edge scenario per rule
-- 1 exception scenario for every rule that has an exception field
-- 2–3 adversarial scenarios combining high-severity rules
+Coverage targets (keep total under 25 scenarios):
+- 1 normal scenario per rule (pick the most important rules if there are many)
+- 1 edge scenario per high-severity rule only
+- 1 exception scenario for rules that have exception fields
+- 2–3 adversarial scenarios combining critical-severity rules
+Keep customer_message concise (2–3 sentences max).
 
 The customer_message should sound like a real customer submitting a support ticket — natural, first-person, specific.
 
@@ -135,7 +136,7 @@ async def generate_scenarios(
     prompt = SCENARIO_PROMPT.format(rules_json=rules_json)
     message = await client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=4000,
+        max_tokens=16000,
         system=SCENARIO_SYSTEM,
         messages=[{"role": "user", "content": prompt}],
     )
