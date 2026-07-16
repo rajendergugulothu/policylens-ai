@@ -1,0 +1,32 @@
+{
+  "folders": [
+    { "name": "backend", "path": "backend" },
+    { "name": "frontend", "path": "frontend" }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder:backend}/.venv/bin/python",
+    "editor.formatOnSave": true,
+    "[python]": {
+      "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "[typescript]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescriptreact]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "charliermarsh.ruff",
+      "bradlc.vscode-tailwindcss",
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint",
+      "mtxr.sqltools",
+      "ckolkman.vscode-postgres",
+      "humao.rest-client"
+    ]
+  }
+}

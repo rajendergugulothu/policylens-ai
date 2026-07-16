@@ -1,0 +1,234 @@
+### PolicyLens AI — API tests
+### Install "REST Client" VS Code extension to run these with Ctrl+Click
+
+@base = http://localhost:8000
+@workspaceId = REPLACE_WITH_WORKSPACE_ID
+@policyId = REPLACE_WITH_POLICY_ID
+@ruleId = REPLACE_WITH_RULE_ID
+@flagId = REPLACE_WITH_FLAG_ID
+@scenarioId = REPLACE_WITH_SCENARIO_ID
+@runId = REPLACE_WITH_RUN_ID
+@releaseId = REPLACE_WITH_RELEASE_ID
+
+# ─── Health ──────────────────────────────────────────────────────────────────
+
+### Health check
+GET {{base}}/health
+
+# ─── Workspaces ───────────────────────────────────────────────────────────────
+
+### Create workspace
+POST {{base}}/workspaces/
+Content-Type: application/json
+
+{
+  "name": "ShopFast Returns Agent v3",
+  "workflow_type": "refund",
+  "created_by": "raj@shopfast.com"
+}
+
+### List workspaces
+GET {{base}}/workspaces/
+
+### Get workspace
+GET {{base}}/workspaces/{{workspaceId}}
+
+# ─── Policies ─────────────────────────────────────────────────────────────────
+
+### Upload policy (plain text)
+POST {{base}}/policies/upload/text
+Content-Type: multipart/form-data; boundary=---boundary
+
+-----boundary
+Content-Disposition: form-data; name="workspace_id"
+
+{{workspaceId}}
+-----boundary
+Content-Disposition: form-data; name="title"
+
+ShopFast Returns Policy v4.2
+-----boundary
+Content-Disposition: form-data; name="raw_text"
+
+SHOPFAST RETURN POLICY
+
+Standard Returns: Items may be returned within 30 days of delivery for a full refund. Items must be unused, in original packaging, with all accessories.
+
+Final Sale: Items marked Final Sale are non-returnable and non-refundable. If a Final Sale item arrives damaged or defective, customer receives STORE CREDIT only. Photo evidence required within 5 days.
+
+Marketplace Items: Items sold by third-party sellers must be returned to the seller. If seller is unresponsive after 48 hours, customer may invoke the ShopFast Guarantee.
+
+Loyalty Points: If a purchase was made using ShopFast Loyalty Points, the refund for the loyalty portion is issued as store credit. The cash portion is refunded to the original payment method.
+
+Holiday Extension: Items purchased Nov 1 - Dec 31 may be returned until Jan 31 of the following year.
+-----boundary--
+
+### List policies for workspace
+GET {{base}}/policies/workspace/{{workspaceId}}
+
+### Get policy
+GET {{base}}/policies/{{policyId}}
+
+# ─── Rules ────────────────────────────────────────────────────────────────────
+
+### Extract rules (calls Claude API)
+POST {{base}}/rules/extract/{{policyId}}?actor=raj@shopfast.com
+
+### List rules
+GET {{base}}/rules/policy/{{policyId}}
+
+### Approve a rule
+POST {{base}}/rules/{{ruleId}}/approve
+Content-Type: application/json
+
+{
+  "reviewed_by": "priya.patel@clearpay.com"
+}
+
+### Edit and approve
+POST {{base}}/rules/{{ruleId}}/edit
+Content-Type: application/json
+
+{
+  "action": "Issue STORE CREDIT only — not cash refund — if item is Final Sale and arrived damaged",
+  "reviewed_by": "priya.patel@clearpay.com"
+}
+
+### Reject a rule
+POST {{base}}/rules/{{ruleId}}/reject
+Content-Type: application/json
+
+{
+  "reviewed_by": "priya.patel@clearpay.com",
+  "notes": "This rule is a duplicate of R2. Covered by the exception clause in R2."
+}
+
+### List ambiguity flags
+GET {{base}}/rules/ambiguity/policy/{{policyId}}
+
+### Resolve ambiguity flag
+POST {{base}}/rules/ambiguity/{{flagId}}/resolve
+Content-Type: application/json
+
+{
+  "resolution": "Store credit applies only to the loyalty points portion. The cash portion is refunded to the original payment method as a cash refund.",
+  "resolved_by": "sarah.chen@shopfast.com"
+}
+
+# ─── Scenarios ────────────────────────────────────────────────────────────────
+
+### Generate scenarios (calls Claude API)
+POST {{base}}/scenarios/generate/{{policyId}}?actor=raj@shopfast.com
+
+### List scenarios
+GET {{base}}/scenarios/policy/{{policyId}}
+
+### Filter by type
+GET {{base}}/scenarios/policy/{{policyId}}?scenario_type=adversarial
+
+### Filter critical tier
+GET {{base}}/scenarios/policy/{{policyId}}?risk_tier=critical
+
+### Add custom scenario
+POST {{base}}/scenarios/policy/{{policyId}}/custom
+Content-Type: application/json
+
+{
+  "title": "Real incident: Final Sale cash refund approved in error",
+  "customer_message": "I bought a Final Sale hoodie last week and it arrived with a broken zipper. I want a refund.",
+  "scenario_type": "exception",
+  "expected_action": "APPROVE_STORE_CREDIT",
+  "expected_explanation": "Final Sale items that arrive damaged qualify for store credit only, not cash refund (Section 2)",
+  "risk_tier": "critical"
+}
+
+### Delete all scenarios (to regenerate)
+DELETE {{base}}/scenarios/policy/{{policyId}}
+
+# ─── Evaluations ──────────────────────────────────────────────────────────────
+
+### Create evaluation run (batch upload mode)
+POST {{base}}/evaluations/
+Content-Type: application/json
+
+{
+  "policy_id": "{{policyId}}",
+  "version_label": "prompt_v1_claude-sonnet",
+  "agent_type": "batch_upload",
+  "created_by": "raj@shopfast.com"
+}
+
+### Upload batch responses
+POST {{base}}/evaluations/{{runId}}/upload-batch
+Content-Type: application/json
+
+{
+  "responses": [
+    {
+      "scenario_id": "{{scenarioId}}",
+      "agent_response": "I can help with your return. Since you purchased this item within 30 days, I can process a full cash refund for you."
+    }
+  ]
+}
+
+### List runs for workspace
+GET {{base}}/evaluations/workspace/{{workspaceId}}
+
+### Get run status
+GET {{base}}/evaluations/{{runId}}
+
+### Get all results
+GET {{base}}/evaluations/{{runId}}/results
+
+### Get failures only
+GET {{base}}/evaluations/{{runId}}/results?verdict=fail
+
+### Get findings (critical first)
+GET {{base}}/evaluations/{{runId}}/findings?severity=critical
+
+# ─── Releases ─────────────────────────────────────────────────────────────────
+
+### Build launch-readiness report
+POST {{base}}/releases/
+Content-Type: application/json
+
+{
+  "evaluation_run_id": "{{runId}}",
+  "created_by": "raj@shopfast.com"
+}
+
+### Get release
+GET {{base}}/releases/{{releaseId}}
+
+### Sign release — QA lead
+POST {{base}}/releases/{{releaseId}}/sign
+Content-Type: application/json
+
+{
+  "signer_name": "Priya Patel",
+  "signer_role": "qa_lead",
+  "notes": "All critical rules tested. 0 critical violations. Approving for launch."
+}
+
+### Sign release — VP Operations (triggers approval)
+POST {{base}}/releases/{{releaseId}}/sign
+Content-Type: application/json
+
+{
+  "signer_name": "Sarah Chen",
+  "signer_role": "vp_operations",
+  "notes": "Coverage report reviewed. Proceeding with pilot launch."
+}
+
+### Get release findings
+GET {{base}}/releases/{{releaseId}}/findings
+
+### Compare two runs (version comparison / regression)
+POST {{base}}/releases/compare
+Content-Type: application/json
+
+{
+  "workspace_id": "{{workspaceId}}",
+  "baseline_run_id": "FIRST_RUN_ID",
+  "comparison_run_id": "{{runId}}"
+}

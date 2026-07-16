@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend (FastAPI)",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["main:app", "--reload", "--port", "8000"],
+      "cwd": "${workspaceFolder}/backend",
+      "envFile": "${workspaceFolder}/backend/.env",
+      "justMyCode": true
+    },
+    {
+      "name": "Frontend (Next.js)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "${workspaceFolder}/frontend",
+      "env": {
+        "NEXT_PUBLIC_API_URL": "http://localhost:8000"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full stack",
+      "configurations": ["Backend (FastAPI)", "Frontend (Next.js)"]
+    }
+  ]
+}

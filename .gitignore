@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+*.sqlite3
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Alembic
+alembic/versions/*.pyc
+
+# Uploads / reports
+uploads/
+reports/*.pdf

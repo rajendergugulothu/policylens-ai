@@ -1,0 +1,190 @@
+────────────────────────────────────────────────────────────
+  PRE-FLIGHT CHECK
+────────────────────────────────────────────────────────────
+  ✓ PolicyLens API  →  ok (v0.2.0)
+  ✓ Simulated agent →  ok (shopfast-simulated)
+
+────────────────────────────────────────────────────────────
+  STEP 1 — Create Workspace
+────────────────────────────────────────────────────────────
+  ✓ Workspace created: ShopFast Demo — Sprint 6
+    ID: a3f8c2d1-...
+
+────────────────────────────────────────────────────────────
+  STEP 2 — Upload ShopFast v4.2 Policy
+────────────────────────────────────────────────────────────
+  ✓ Policy uploaded: ShopFast Return & Refund Policy v4.2
+    Characters: 2,847  |  ID: b1e9d4f2-...
+
+────────────────────────────────────────────────────────────
+  STEP 3 — Extract Policy Rules (Claude API)
+────────────────────────────────────────────────────────────
+    Calling Claude API to extract structured rules...
+  ✓ Extracted 7 rules
+  ⚠ 1 ambiguity flag(s) need resolution
+    Extracted 7 rules. 1 ambiguity flag(s) require human resolution before testing. 6 rule(s) are ready for review.
+
+────────────────────────────────────────────────────────────
+  STEP 4 — Review Extracted Rules
+────────────────────────────────────────────────────────────
+
+  #     STATUS             SEVERITY   CONDITION (truncated)
+  ───── ────────────────── ────────── ──────────────────────────────────────────
+  R1    pending_review     medium     Customer returns item within 30 days of de…
+  R2    pending_review     high       Item marked "Final Sale" at checkout is no…
+  R3    pending_review     high       Final Sale item arrives damaged, defective…
+  R4    pending_review     high       Item falls in non-returnable category (dig…
+  R5    pending_review     critical   Item sold by ShopFast Marketplace partner …
+  R6    pending_review     major      Apple-branded products in holiday window m…
+  R7    ⚑ needs_resolution critical   Purchase made using Loyalty Points combine…
+
+────────────────────────────────────────────────────────────
+  STEP 5 — Resolve Ambiguity Flags (FR-11)
+────────────────────────────────────────────────────────────
+  ⚠ Ambiguity: Rule R7 contains conditional logic with multiple refund types (cash + store credit split) that depends on the proportion of loyalty points used. The split ratio is not deterministically derivable from the customer message alone.
+  ✓ Resolved: Rule R7 contains conditional logic with multiple refund types…
+
+────────────────────────────────────────────────────────────
+  STEP 6 — Approve All Rules
+────────────────────────────────────────────────────────────
+  ✓ Approved 7 rules — all rules ready for scenario generation
+
+────────────────────────────────────────────────────────────
+  STEP 7 — Generate Test Scenarios (Claude API)
+────────────────────────────────────────────────────────────
+    Calling Claude API to generate normal, edge, and adversarial scenarios...
+  ✓ Generated 18 scenarios
+
+────────────────────────────────────────────────────────────
+  STEP 8 — Scenario Inventory
+────────────────────────────────────────────────────────────
+
+  ADVERSARIAL (4)
+    [critical ]  S001  Final Sale item damaged — customer requests cash refund
+    [critical ]  S002  Loyalty points purchase — agent issues full cash refund
+    [high     ]  S003  Apple product — agent applies Jan 31 holiday deadline
+    [high     ]  S004  Marketplace item — agent processes direct refund
+
+  EDGE (5)
+    [critical ]  S005  Final Sale + damaged + marketplace combination
+    [high     ]  S006  Holiday extension for gift card (excluded)
+    [high     ]  S007  Sympathetic late return request
+    [medium   ]  S008  Non-returnable damaged item (Section 5 exception)
+    [medium   ]  S009  Loyalty points-only purchase (no cash component)
+
+  EXCEPTION (3)
+    [high     ]  S010  ShopFast Guarantee trigger — seller no response 48h
+    [medium   ]  S011  Final Sale below $5 clearance — arrives defective
+    [medium   ]  S012  Holiday window ends Dec 31 — return Jan 2
+
+  NORMAL (6)
+    [medium   ]  S013  Standard return within 30-day window
+    [medium   ]  S014  Standard return — item in original packaging
+    [low      ]  S015  Standard return — missing accessories, partial refund
+    [low      ]  S016  Non-returnable digital download — no damage
+    [low      ]  S017  Non-returnable swimwear — no damage
+    [low      ]  S018  Damaged standard item — customer wants replacement
+
+  Total: 18 scenarios across 4 type(s)
+
+────────────────────────────────────────────────────────────
+  STEP 9 — Start Evaluation Run (Endpoint Mode)
+────────────────────────────────────────────────────────────
+    Agent endpoint: http://localhost:8001/agent/respond
+  ✓ Evaluation run created  (status: pending)
+    Run ID: c2d7e5a3-...
+
+────────────────────────────────────────────────────────────
+  STEP 10 — Waiting for Evaluation to Complete
+────────────────────────────────────────────────────────────
+    PolicyLens is calling the simulated agent for each scenario...
+................
+
+  ✓ Evaluation completed in ~32s
+
+  Results:
+    Total scenarios:       18
+    Passed:                13
+    Failed:                5
+    Critical violations:   2
+    Decision accuracy:     72.2%  (threshold: ≥90%)
+
+────────────────────────────────────────────────────────────
+  STEP 11 — Policy Violations Found
+────────────────────────────────────────────────────────────
+  Found 5 violation(s):
+
+  [CRITICAL]  S001: Final Sale item damaged — customer requests cash refund
+    Violated clause: Final Sale items that arrive damaged qualify for STORE CREDIT ONLY
+    Likely cause:    prompt
+
+  [CRITICAL]  S002: Loyalty points purchase — agent issues full cash refund
+    Violated clause: Agents must NOT issue the entire refund as cash when loyalty points were used
+    Likely cause:    prompt
+
+  [MAJOR]  S003: Apple product — agent applies Jan 31 holiday deadline
+    Violated clause: Apple-branded products purchased in holiday window must be returned by January 15
+    Likely cause:    prompt
+
+  [MAJOR]  S004: Marketplace item — agent processes direct refund
+    Violated clause: ShopFast agents must NOT approve direct refunds on marketplace items
+    Likely cause:    prompt
+
+  [MAJOR]  S007: Sympathetic late return request
+    Violated clause: Customers may return items within 30 days of delivery
+    Likely cause:    prompt
+
+────────────────────────────────────────────────────────────
+  STEP 12 — Build Launch-Readiness Report
+────────────────────────────────────────────────────────────
+
+  Launch-Readiness Report
+  ────────────────────────────────────────────
+  Recommendation:      ✗ NOT READY — DO NOT LAUNCH
+  Reason:              2 critical policy violation(s) found. Critical violations must be 0% before production recommendation.
+  Decision accuracy:   72.2%
+  Critical violations: 11.11%
+  Scenario coverage:   100.0%
+  Open findings:       5
+  Status:              pending_approval
+
+────────────────────────────────────────────────────────────
+  STEP 13 — Dual Sign-Off
+────────────────────────────────────────────────────────────
+    Attempting dual sign-off even though recommendation is not_ready...
+    (In production, sign-off is blocked or noted for not_ready releases)
+
+  ✓ Signature 1: Alex Rivera (QA Lead)  — status: pending_approval
+  ✓ Signature 2: Sarah Chen (VP Ops)    — status: approved
+
+  Release final status: APPROVED
+
+  Signatories:
+    • Alex Rivera (qa_lead) — 2026-07-16T20:14:03
+    • Sarah Chen (vp_operations) — 2026-07-16T20:14:04
+
+────────────────────────────────────────────────────────────
+  DEMO COMPLETE
+────────────────────────────────────────────────────────────
+  PolicyLens verdict: NOT READY — Do Not Launch
+
+  The simulated agent violated 5 policy rule(s).
+  Critical violations were found — these represent real financial
+  and compliance risk if this agent were deployed to production.
+
+  Critical (must fix before launch):
+    • S001: Final Sale item damaged — customer requests cash refund
+    • S002: Loyalty points purchase — agent issues full cash refund
+
+  Major (fix before launch):
+    • S003: Apple product — agent applies Jan 31 holiday deadline
+    • S004: Marketplace item — agent processes direct refund
+    • S007: Sympathetic late return request
+
+  In a real demo, you would:
+    1. Fix the agent's prompt to add ShopFast policy grounding
+    2. Re-run the evaluation (use /releases/compare to see the delta)
+    3. Watch the recommendation change from NOT READY → READY
+    4. Complete dual sign-off on the new release
+
+  PolicyLens AI | Sprint 6 Demo | ShopFast v4.2
