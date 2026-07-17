@@ -1,8 +1,14 @@
+import { useAuth } from "@clerk/nextjs";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, token?: string | null): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
     ...init,
   });
   if (!res.ok) {
@@ -10,6 +16,71 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(err.detail ?? "Request failed");
   }
   return res.json() as Promise<T>;
+}
+
+// Hook-based API client — use inside React components
+export function useApi() {
+  const { getToken } = useAuth();
+
+  async function req<T>(path: string, init?: RequestInit): Promise<T> {
+    const token = await getToken();
+    return request<T>(path, init, token);
+  }
+
+  return {
+    workspaces: {
+      list: () => req<Workspace[]>("/workspaces/"),
+      get: (id: string) => req<Workspace>(`/workspaces/${id}`),
+      create: (name: string, workflowType = "refund") =>
+        req<Workspace>("/workspaces/", { method: "POST", body: JSON.stringify({ name, workflow_type: workflowType }) }),
+    },
+    policies: {
+      list: (workspaceId: string) => req<Policy[]>(`/policies/workspace/${workspaceId}`),
+      get: (id: string) => req<Policy>(`/policies/${id}`),
+      uploadText: async (workspaceId: string, rawText: string, title?: string) => {
+        const token = await getToken();
+        const form = new FormData();
+        form.append("workspace_id", workspaceId);
+        form.append("raw_text", rawText);
+        if (title) form.append("title", title);
+        const res = await fetch(`${API_BASE}/policies/upload/text`, {
+          method: "POST",
+          body: form,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        return res.json();
+      },
+    },
+    rules: {
+      extract: (policyId: string) => req<ExtractionResponse>(`/rules/extract/${policyId}`, { method: "POST" }),
+      list: (policyId: string) => req<Rule[]>(`/rules/policy/${policyId}`),
+      approve: (ruleId: string, reviewedBy: string) =>
+        req<Rule>(`/rules/${ruleId}/approve`, { method: "POST", body: JSON.stringify({ reviewed_by: reviewedBy }) }),
+      edit: (ruleId: string, edits: Partial<Rule> & { reviewed_by: string }) =>
+        req<Rule>(`/rules/${ruleId}/edit`, { method: "POST", body: JSON.stringify(edits) }),
+      reject: (ruleId: string, reviewedBy: string, notes: string) =>
+        req<Rule>(`/rules/${ruleId}/reject`, { method: "POST", body: JSON.stringify({ reviewed_by: reviewedBy, notes }) }),
+    },
+    evaluations: {
+      list: (workspaceId: string) => req<EvaluationRun[]>(`/evaluations/workspace/${workspaceId}`),
+      get: (id: string) => req<EvaluationRun>(`/evaluations/${id}`),
+      create: (payload: { policy_id: string; agent_endpoint_url: string; version_label?: string; created_by?: string }) =>
+        req<EvaluationRun>("/evaluations/", { method: "POST", body: JSON.stringify({ agent_type: "endpoint", ...payload }) }),
+      findings: (id: string) => req<Finding[]>(`/evaluations/${id}/findings`),
+    },
+    releases: {
+      create: (evaluationRunId: string, createdBy?: string) =>
+        req<Release>("/releases/", { method: "POST", body: JSON.stringify({ evaluation_run_id: evaluationRunId, created_by: createdBy ?? "ui-user" }) }),
+      get: (id: string) => req<Release>(`/releases/${id}`),
+      sign: (id: string, signerName: string, signerRole: string) =>
+        req<Release>(`/releases/${id}/sign`, { method: "POST", body: JSON.stringify({ signer_name: signerName, signer_role: signerRole }) }),
+    },
+    ambiguity: {
+      list: (policyId: string) => req<AmbiguityFlag[]>(`/rules/ambiguity/policy/${policyId}`),
+      resolve: (flagId: string, resolution: string, resolvedBy: string) =>
+        req<AmbiguityFlag>(`/rules/ambiguity/${flagId}/resolve`, { method: "POST", body: JSON.stringify({ resolution, resolved_by: resolvedBy }) }),
+    },
+  };
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────

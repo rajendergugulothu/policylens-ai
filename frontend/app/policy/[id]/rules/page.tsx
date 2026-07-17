@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, type Rule, type AmbiguityFlag, type Policy } from "@/lib/api";
+import { useApi, type Rule, type AmbiguityFlag, type Policy } from "@/lib/api";
 
 const SEV_HEADER: Record<string, string> = {
   critical: "rule-card-header-critical",
@@ -32,6 +32,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function RulesPage({ params }: { params: { id: string } }) {
+  const api = useApi();
   const [policy, setPolicy] = useState<Policy | null>(null);
   const [rules, setRules] = useState<Rule[]>([]);
   const [flags, setFlags] = useState<AmbiguityFlag[]>([]);
@@ -46,7 +47,7 @@ export default function RulesPage({ params }: { params: { id: string } }) {
   const [resolutionText, setResolutionText] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  async function reload() {
+  const reload = async () => {
     const [r, f] = await Promise.all([
       api.rules.list(params.id),
       api.ambiguity.list(params.id),

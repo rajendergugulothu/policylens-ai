@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, type Workspace, type Policy, type EvaluationRun } from "@/lib/api";
+import { useApi, type Workspace, type Policy, type EvaluationRun } from "@/lib/api";
 
 export default function WorkspacePage({ params }: { params: { id: string } }) {
+  const api = useApi();
   const [ws, setWs] = useState<Workspace | null>(null);
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [policyText, setPolicyText] = useState("");

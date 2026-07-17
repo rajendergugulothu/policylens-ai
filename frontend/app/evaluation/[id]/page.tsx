@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { api, type EvaluationRun, type Finding, type Release } from "@/lib/api";
+import { useApi, type EvaluationRun, type Finding, type Release } from "@/lib/api";
 
 const SEV_BADGE: Record<string, string> = {
   critical: "badge-critical",
@@ -12,6 +12,7 @@ const SEV_BADGE: Record<string, string> = {
 const ROLES = ["qa_lead", "vp_operations", "compliance_officer", "head_of_ai"];
 
 export default function EvaluationPage({ params }: { params: { id: string } }) {
+  const api = useApi();
   const [run, setRun] = useState<EvaluationRun | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [release, setRelease] = useState<Release | null>(null);

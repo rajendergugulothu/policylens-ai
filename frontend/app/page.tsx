@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, type Workspace } from "@/lib/api";
+import { useApi, type Workspace } from "@/lib/api";
 
 export default function Home() {
+  const api = useApi();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
