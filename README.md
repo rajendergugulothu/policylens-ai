@@ -1,74 +1,132 @@
-# PolicyLens AI
+<div align="center">
 
-**Pre-production policy compliance testing for AI agents.**
+  <h1>PolicyLens AI</h1>
 
-An AI agent can sound completely correct while violating company policy. PolicyLens catches those violations before the agent reaches production — by extracting structured rules from your policy documents, generating test scenarios, evaluating agent responses, and producing a launch-readiness report with dual sign-off.
+  <p><strong>Pre-production policy compliance testing for AI agents.</strong></p>
 
----
+  <p>
+    <img src="https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=nextdotjs" />
+    <img src="https://img.shields.io/badge/FastAPI-Python_3.12-009688?style=flat-square&logo=fastapi" />
+    <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql" />
+    <img src="https://img.shields.io/badge/Claude-Anthropic-cc785c?style=flat-square&logo=anthropic" />
+    <img src="https://img.shields.io/badge/Clerk-Auth-6C47FF?style=flat-square&logo=clerk" />
+    <img src="https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&logo=typescript" />
+  </p>
 
-## The problem it solves
-
-Teams deploying AI agents typically test for *capability* (does it answer correctly?) but not *compliance* (does it follow our specific policy?). The gap is subtle — a well-written agent will give plausible, confident answers that are still wrong under your rules.
-
-**Real violations found during testing with ShopFast:**
-- Agent approved a **cash refund** on a Final Sale damaged item — policy requires store credit only
-- Agent applied the **January 31** holiday deadline to Apple products — policy says January 15
-- Agent processed a **direct refund** on a marketplace item — policy requires routing to the seller first
-- Agent issued the **full refund as cash** on a loyalty points purchase — policy requires a proportional split
-
-None of these would be caught by standard QA. All of them have real financial or legal consequences at scale.
+</div>
 
 ---
 
-## How it works
+## What is PolicyLens AI?
+
+Teams deploying AI agents test for capability — does it answer correctly? — but not compliance — does it follow *our specific policy?* The gap is subtle: a well-written agent gives plausible, confident answers that are still wrong under your rules. **PolicyLens extracts structured rules from your policy documents, generates test scenarios, evaluates your agent against every rule, and produces a launch-readiness report with dual sign-off before a single user is affected.**
+
+> **Upload your policy. Generate tests. Evaluate your agent. Ship with confidence.**
+
+---
+
+## How It Works
 
 ```
-Policy document (PDF / text / Notion)
-        │
-        ▼
-  Rule Extraction ──── Claude extracts structured IF/THEN rules
-        │                with condition, action, exception, severity
-        │
-        ▼
-  Human Review ──────── Policy team approves rules in the UI
-        │                Ambiguity flags block testing until resolved
-        │
-        ▼
-  Scenario Generation ── Claude generates normal, edge, and adversarial
-        │                  test scenarios per rule
-        │
-        ▼
-  Evaluation ─────────── Agent is called for each scenario
-        │                  Deterministic checker → LLM judge for edge cases
-        │
-        ▼
-  Launch Report ─────── Ready / Conditionally Ready / Not Ready
-        │                  Critical violations block launch recommendation
-        │
-        ▼
-  Dual Sign-Off ──────── Two stakeholders sign before release is approved
+  Policy document (PDF / text / Notion)
+              │
+              ▼
+  Rule Extraction ─── Claude extracts structured IF/THEN rules ────────
+              │        with condition, action, exception, severity       │
+              │                                                          │
+              ▼                                                          │
+  Human Review ────── Policy team approves rules in the UI              │
+              │        Ambiguity flags block testing until resolved      │
+              │                                                          │
+              ▼                                                          │
+  Scenario Generation ── Claude generates normal, edge, and             │
+              │            adversarial test cases per rule               │
+              │                                                          │
+              ▼                                                          │
+  Evaluation ──────── Agent called for each scenario                    │
+              │        Deterministic checker first → LLM judge for      │
+              │        edge cases and critical-tier scenarios            │
+              │                                                          │
+              ▼                                                          │
+  Launch Report ───── Ready / Conditionally Ready / Not Ready           │
+              │        Critical violations block launch recommendation   │
+              │                                                          │
+              ▼                                                          │
+  Dual Sign-Off ───── Two stakeholders sign before release approved ────┘
 ```
 
 ---
 
-## Tech stack
+## Key Features
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Python 3.12, FastAPI, SQLAlchemy 2.0 async |
-| Database | PostgreSQL 16 |
-| LLM | Anthropic Claude API |
-| Auth | Clerk (JWT, all routes protected) |
-| Frontend | Next.js 14, TypeScript |
+- 📄 **Structured Rule Extraction** — Claude parses policy documents into typed IF/THEN rules with condition, action, exception, and severity
+- 🚩 **Ambiguity Flagging** — rules whose correct action depends on unstated context are flagged and block testing until resolved by a human
+- 🧪 **Scenario Generation** — normal, edge, and adversarial test cases generated per rule, covering the exact failure modes standard QA misses
+- ⚖️ **Dual Evaluation Engine** — deterministic keyword matching for clear-cut cases, LLM judge fires only for inconclusive or critical results
+- 📋 **Launch-Readiness Report** — Ready / Conditionally Ready / Not Ready verdict with violation breakdown by severity
+- ✍️ **Dual Sign-Off** — two stakeholders must sign before a release is approved; same signer cannot sign twice, enforced at the service layer
+- 🔐 **Clerk Auth** — all routes JWT-protected; multi-tenant by design
 
 ---
 
-## Key design decisions
+## Real Violations Found
 
-**Deterministic evaluation first, LLM judge second.** The evaluator runs keyword pattern matching for clear-cut cases before making an API call. The LLM judge only fires for inconclusive results or critical-tier scenarios.
+During testing with a ShopFast returns agent — violations that would have reached production undetected:
 
-**Ambiguity flags block scenario generation.** If Claude identifies a rule whose correct action depends on unstated context, it creates an ambiguity flag that prevents scenario generation until a human resolves it in plain language.
+| Scenario | Agent action | Policy says |
+|----------|-------------|-------------|
+| Final Sale damaged item | Cash refund approved | Store credit only |
+| Apple product holiday return | Jan 31 deadline applied | Jan 15 for Apple products |
+| Marketplace item return | Direct refund processed | Route to seller first |
+| Loyalty points purchase | Full refund as cash | Proportional split required |
+
+None caught by standard QA. All with real financial or legal consequences at scale.
+
+---
+
+## Tech Stack
+
+**Backend** — FastAPI · SQLAlchemy 2.0 async · PostgreSQL 16 · Anthropic Claude API · Python 3.12
+
+**Frontend** — Next.js 14 (App Router) · TypeScript · Clerk Auth
+
+**Infrastructure** — Docker Compose · PostgreSQL
+
+---
+
+## Design Decisions
+
+**Deterministic evaluation first, LLM judge second.** Keyword pattern matching runs before any API call. The LLM judge only fires for inconclusive results or critical-tier scenarios — keeping evaluation fast and cost-bounded.
+
+**Ambiguity flags block scenario generation.** If Claude identifies a rule whose correct action depends on unstated context, it raises an ambiguity flag. Testing cannot proceed until a human resolves it in plain language. Ambiguous rules produce unreliable scenarios.
 
 **Expected actions are typed, not free-form.** Scenarios specify one of nine exact expected actions — `APPROVE_FULL_REFUND`, `APPROVE_STORE_CREDIT`, `DENY_RETURN`, `ROUTE_TO_SELLER`, etc. The distinction between these is exactly the class of violation PolicyLens is built to catch.
 
-**Dual sign-off is enforced at the service layer.** A release requires exactly 2 signatures before status moves to approved. The same signer cannot sign twice. This is not a UI convention — it's a backend constraint.
+**Dual sign-off is enforced at the service layer.** A release requires exactly 2 signatures before status moves to approved. The same signer cannot sign twice. This is not a UI convention — it is a backend constraint.
+
+---
+
+## Portfolio Context
+
+PolicyLens AI is the first project in an AI operations portfolio. The second, [ExceptionLoop](https://github.com/rajendergugulothu/exceptionloop), manages what breaks after deployment.
+
+| | PolicyLens AI | ExceptionLoop |
+|--|--------------|---------------|
+| **When** | Before deployment | After deployment |
+| **What** | Tests agents against policy | Manages escalations + learns from them |
+| **Output** | Launch-readiness report | Automation pipeline |
+| **North Star** | % decisions proven safe before prod | % recurring exceptions converted to automation |
+
+---
+
+## About
+
+Built as a full-stack production-grade compliance tool — covering LLM-powered document parsing, multi-stage evaluation pipelines, typed scenario generation, and a dual sign-off enforcement model with zero UI-level bypass.
+
+**Built by [Rajender Gugulothu](https://github.com/rajendergugulothu)**
+
+---
+
+<div align="center">
+  <em>PolicyLens AI — Test your agent before your users do.</em>
+</div>
