@@ -4,6 +4,9 @@
 
 An AI agent can sound completely correct while violating company policy. PolicyLens catches those violations before the agent reaches production — by extracting structured rules from your policy documents, generating test scenarios, evaluating agent responses, and producing a launch-readiness report with dual sign-off.
 
+**Live demo:** [policylens-ai-sand.vercel.app](https://policylens-ai-sand.vercel.app)  
+**Backend API:** [policylens-ai-g207.onrender.com/docs](https://policylens-ai-g207.onrender.com/docs)
+
 ---
 
 ## The problem it solves
@@ -31,7 +34,7 @@ Policy document (PDF / text / Notion)
         │
         ▼
   Human Review ──────── Policy team approves rules in the UI
-        │                Ambiguity flags block testing until resolved (FR-11)
+        │                Ambiguity flags block testing until resolved
         │
         ▼
   Scenario Generation ── Claude generates normal, edge, and adversarial
@@ -46,30 +49,9 @@ Policy document (PDF / text / Notion)
         │                  Critical violations block launch recommendation
         │
         ▼
-  Dual Sign-Off ──────── QA Lead + VP Operations both sign
-                          Release is approved only when both signatures present
+  Dual Sign-Off ──────── QA Lead + Compliance Officer both sign
+                          Release approved only when both signatures present
 ```
-
----
-
-## Demo
-
-The `demo/` folder contains a fully runnable end-to-end demo using the ShopFast v4.2 policy.
-
-```bash
-# Terminal 1 — backend
-uvicorn backend.main:app --reload --port 8000
-
-# Terminal 2 — simulated agent (no policy grounding)
-uvicorn demo.simulated_agent:app --port 8001
-
-# Terminal 3 — run the demo
-python demo/run_demo.py
-```
-
-Expected output: `demo/expected_output.txt` | Full instructions: `demo/README.md`
-
-The demo walks through all 13 steps — workspace creation through dual sign-off — and surfaces 4–5 violations including 2 critical, producing a **NOT READY** recommendation with specific findings for remediation.
 
 ---
 
@@ -77,13 +59,30 @@ The demo walks through all 13 steps — workspace creation through dual sign-off
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.12, FastAPI, SQLAlchemy 2.0 async |
-| Database | PostgreSQL 16 via asyncpg |
+| Backend | Python 3.12, FastAPI, SQLAlchemy 2.0 async, asyncpg |
+| Database | PostgreSQL 16 via Neon (serverless) |
 | LLM | Anthropic Claude API (claude-sonnet-4-6) |
-| PDF parsing | pdfplumber |
-| Notion ingestion | Notion API v2 |
+| Auth | Clerk (JWT, all routes protected) |
 | Frontend | Next.js 14, TypeScript |
-| Tests | pytest, pytest-asyncio, aiosqlite (in-memory, no infra needed) |
+| Deployment | Render (backend) + Vercel (frontend) |
+
+---
+
+## Deployment
+
+| Service | URL |
+|---------|-----|
+| Frontend | https://policylens-ai-sand.vercel.app |
+| Backend API | https://policylens-ai-g207.onrender.com |
+| API Docs | https://policylens-ai-g207.onrender.com/docs |
+
+> **Note:** The Render backend is on a free tier and may take ~50 seconds to wake up after inactivity. The first request after a cold start will be slow — subsequent requests are fast.
+
+---
+
+## Authentication
+
+All routes are protected by Clerk. Sign up with email or Google at the live URL. The backend verifies Clerk JWTs on every API request — unauthenticated requests return 401.
 
 ---
 
@@ -91,19 +90,45 @@ The demo walks through all 13 steps — workspace creation through dual sign-off
 
 **Deterministic evaluation first, LLM judge second.** The evaluator runs keyword pattern matching for clear-cut cases before making an API call. The LLM judge only fires for inconclusive results or critical-tier scenarios. This keeps evaluation costs low for simple pass/fail while applying full reasoning where it matters.
 
-**Ambiguity flags block scenario generation (FR-11).** If Claude identifies a rule whose correct action depends on unstated context, it creates an `AmbiguityFlag` record that prevents scenario generation until a human resolves it in plain language. Ambiguous rules produce ambiguous tests — PolicyLens refuses to skip that step.
+**Ambiguity flags block scenario generation.** If Claude identifies a rule whose correct action depends on unstated context, it creates an `AmbiguityFlag` record that prevents scenario generation until a human resolves it in plain language. Ambiguous rules produce ambiguous tests — PolicyLens refuses to skip that step.
 
 **Expected actions are typed, not free-form.** Scenarios specify one of nine exact expected actions: `APPROVE_FULL_REFUND`, `APPROVE_STORE_CREDIT`, `APPROVE_REPLACEMENT`, `PARTIAL_REFUND`, `DENY_RETURN`, `DENY_REFUND`, `ROUTE_TO_SELLER`, `ESCALATE_TO_CS`, `REQUEST_EVIDENCE`. The distinction between "approve refund" and "approve store credit" is exactly the class of violation PolicyLens is built to catch.
 
-**Source citations on every rule.** PDF ingestion tags text with `[PAGE:N]` markers; Notion ingestion tags with `[BLOCK:id|URL:url]` markers. The extraction service resolves these into `source_page` and `source_citation_url` on each rule, so every extracted rule links back to its exact location in the original policy.
+**Dual sign-off is enforced at the service layer.** A release requires exactly 2 `ReleaseSignature` records before `status` moves to `approved`. The same signer cannot sign twice. This is not a UI convention — it's a constraint enforced in the backend service.
 
-**Dual sign-off is enforced at the service layer.** A release requires exactly 2 `ReleaseSignature` records before `status` moves to `approved`. The same signer cannot sign twice. This is not a UI convention — it's a constraint in `services/report.py:sign_release()`.
+---
+
+## Running locally
+
+**Without Docker**
+```bash
+# Backend
+cd backend
+python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env     # set DATABASE_URL and ANTHROPIC_API_KEY
+uvicorn main:app --reload
+
+# Frontend (new terminal)
+cd frontend && npm install && npm run dev
+```
+
+Required env vars:
+
+| Variable | Where | Description |
+|----------|-------|-------------|
+| `DATABASE_URL` | backend | `postgresql+asyncpg://...?ssl=require` |
+| `ANTHROPIC_API_KEY` | backend | Claude API key |
+| `CLERK_JWKS_URL` | backend | From Clerk dashboard → API Keys → JWKS URL |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | frontend | From Clerk dashboard |
+| `CLERK_SECRET_KEY` | frontend | From Clerk dashboard |
+| `NEXT_PUBLIC_API_URL` | frontend | Backend URL (e.g. `http://localhost:8000`) |
 
 ---
 
 ## API
 
-32 endpoints across 6 routers. Full interactive docs at `http://localhost:8000/docs`.
+32 endpoints across 6 routers. Full interactive docs at `/docs`.
 
 ```
 GET  /health
@@ -147,81 +172,31 @@ POST /releases/compare
 
 ---
 
-## Running locally
-
-**Docker (recommended)**
-```bash
-cp backend/.env.example backend/.env   # add ANTHROPIC_API_KEY
-docker compose up
-```
-
-Backend docs: `http://localhost:8000/docs`  
-Frontend: `http://localhost:3000`
-
-**Without Docker**
-```bash
-# Backend
-cd backend
-python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env     # set DATABASE_URL and ANTHROPIC_API_KEY
-uvicorn main:app --reload
-
-# Frontend (new terminal)
-cd frontend && npm install && npm run dev
-```
-
----
-
-## Tests
-
-```bash
-pip install -r tests/requirements-test.txt
-pytest tests/
-```
-
-Tests use an in-memory SQLite database — no PostgreSQL or API key needed. Claude API calls are mocked. Coverage includes: rule extraction and ambiguity flagging, deterministic checker, evaluation accuracy and finding creation, recommendation thresholds, dual sign-off enforcement, version comparison, and all four simulated agent violations.
-
----
-
 ## Project structure
 
 ```
 policylens-ai/
 ├── backend/
-│   ├── main.py                     FastAPI app, 32 routes, 6 routers
-│   ├── models/                     12 SQLAlchemy tables
-│   │   ├── workspace.py
-│   │   ├── policy.py               versioned, is_active flag
-│   │   ├── policy_rule.py          PolicyRule + AmbiguityFlag
-│   │   ├── scenario.py
-│   │   ├── evaluation.py           EvaluationRun, ScenarioResult, Finding, FixAssignment
-│   │   ├── release.py              Release + ReleaseSignature (dual sign-off)
-│   │   └── audit.py                append-only AuditLog
+│   ├── main.py                     FastAPI app, Clerk JWT auth middleware
+│   ├── models/                     SQLAlchemy ORM tables
 │   ├── routers/                    one file per resource
 │   └── services/
 │       ├── ingestion.py            PDF (pdfplumber) + Notion API
-│       ├── extraction.py           Claude rule extraction + FR-11 ambiguity detection
+│       ├── extraction.py           Claude rule extraction + ambiguity detection
 │       ├── scenario_generator.py   Claude scenario generation
-│       ├── evaluator.py            deterministic checker + LLM judge + risk classifier
-│       └── report.py               release builder + version comparison
+│       ├── evaluator.py            deterministic checker + LLM judge
+│       └── report.py               release builder + dual sign-off
 ├── frontend/
+│   ├── middleware.ts               Clerk auth — blocks all unauthenticated routes
 │   ├── app/page.tsx                workspace list
-│   ├── app/workspace/[id]/         policy upload + list
-│   └── app/policy/[id]/rules/      rule review table (main UI)
-├── demo/
-│   ├── shopfast_policy.txt         ShopFast v4.2 returns policy (design partner)
-│   ├── simulated_agent.py          mock agent with no policy grounding
-│   ├── run_demo.py                 end-to-end demo script
-│   ├── expected_output.txt         sample terminal output
-│   ├── loom_script.md              3-minute demo video script
-│   └── README.md                   demo setup guide
-└── tests/
-    ├── conftest.py                 shared fixtures (in-memory SQLite)
-    ├── test_extraction.py
-    ├── test_evaluator.py
-    ├── test_report.py
-    └── test_simulated_agent.py
+│   ├── app/workspace/[id]/         workspace detail + policy upload
+│   ├── app/policy/[id]/rules/      rule review + ambiguity resolution
+│   └── app/evaluation/[id]/        evaluation results + release report + sign-off
+└── demo/
+    ├── shopfast_policy.txt         ShopFast v4.2 returns policy
+    ├── simulated_agent.py          mock agent with no policy grounding
+    ├── run_demo.py                 end-to-end CLI demo
+    └── loom_script.md              3-minute demo video script
 ```
 
 ---
@@ -230,9 +205,10 @@ policylens-ai/
 
 | Sprint | Scope | Status |
 |--------|-------|--------|
-| 1 | Setup, DB schema (12 tables), ingestion (PDF + Notion) | ✅ |
-| 2 | LLM rule extraction, FR-11 ambiguity flagging, rule review UI | ✅ |
+| 1 | Setup, DB schema, ingestion (PDF + Notion) | ✅ |
+| 2 | LLM rule extraction, ambiguity flagging, rule review UI | ✅ |
 | 3 | Scenario generation (normal, edge, exception, adversarial) | ✅ |
 | 4 | Evaluation engine (deterministic + LLM judge, findings) | ✅ |
 | 5 | Launch report, dual sign-off, version comparison | ✅ |
 | 6 | End-to-end demo (ShopFast), test suite, Loom script | ✅ |
+| 7 | Frontend evaluation/release UI, CORS restriction, Clerk auth | ✅ |
