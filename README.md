@@ -27,33 +27,11 @@ Teams deploying AI agents test for capability — does it answer correctly? — 
 
 ## How It Works
 
-```
-  Policy document (PDF / text / Notion)
-              │
-              ▼
-  Rule Extraction ─── Claude extracts structured IF/THEN rules ────────
-              │        with condition, action, exception, severity       │
-              │                                                          │
-              ▼                                                          │
-  Human Review ────── Policy team approves rules in the UI              │
-              │        Ambiguity flags block testing until resolved      │
-              │                                                          │
-              ▼                                                          │
-  Scenario Generation ── Claude generates normal, edge, and             │
-              │            adversarial test cases per rule               │
-              │                                                          │
-              ▼                                                          │
-  Evaluation ──────── Agent called for each scenario                    │
-              │        Deterministic checker first → LLM judge for      │
-              │        edge cases and critical-tier scenarios            │
-              │                                                          │
-              ▼                                                          │
-  Launch Report ───── Ready / Conditionally Ready / Not Ready           │
-              │        Critical violations block launch recommendation   │
-              │                                                          │
-              ▼                                                          │
-  Dual Sign-Off ───── Two stakeholders sign before release approved ────┘
-```
+### Pipeline architecture
+![PolicyLens architecture](docs/architecture.png)
+
+### User flow
+![PolicyLens user flow](docs/flow.png)
 
 ---
 
