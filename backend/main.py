@@ -36,9 +36,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "https://policylens-ai-sand.vercel.app",
+    "https://policylens-fywkwxkvt-rajjrajender2112-9081s-projects.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

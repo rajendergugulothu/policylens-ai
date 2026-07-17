@@ -57,6 +57,52 @@ export interface Rule {
   has_open_ambiguity: boolean;
 }
 
+export interface EvaluationRun {
+  id: string;
+  workspace_id: string;
+  policy_id: string;
+  version_label: string | null;
+  agent_type: string;
+  agent_endpoint_url: string | null;
+  status: "pending" | "running" | "completed" | "failed";
+  total_scenarios: number;
+  passed: number;
+  failed: number;
+  critical_violations: number;
+  decision_accuracy_pct: number | null;
+  started_at: string;
+  completed_at: string | null;
+  created_by: string | null;
+}
+
+export interface Finding {
+  id: string;
+  evaluation_run_id: string;
+  scenario_id: string;
+  scenario_title: string;
+  rule_id: string | null;
+  violated_clause: string | null;
+  severity: "critical" | "major" | "minor";
+  likely_cause: string | null;
+  agent_action: string | null;
+  expected_action: string | null;
+  status: string;
+}
+
+export interface Release {
+  id: string;
+  workspace_id: string;
+  evaluation_run_id: string;
+  recommendation: string;
+  recommendation_reason: string | null;
+  critical_violation_rate: number | null;
+  decision_accuracy_pct: number | null;
+  scenario_coverage_pct: number | null;
+  open_findings: number;
+  status: string;
+  signatures: { signer_name: string; signer_role: string; signed_at: string }[];
+}
+
 export interface AmbiguityFlag {
   id: string;
   rule_id: string;
@@ -121,6 +167,37 @@ export const api = {
       request<Rule>(`/rules/${ruleId}/reject`, {
         method: "POST",
         body: JSON.stringify({ reviewed_by: reviewedBy, notes }),
+      }),
+  },
+
+  evaluations: {
+    list: (workspaceId: string) =>
+      request<EvaluationRun[]>(`/evaluations/workspace/${workspaceId}`),
+    get: (id: string) => request<EvaluationRun>(`/evaluations/${id}`),
+    create: (payload: {
+      policy_id: string;
+      agent_endpoint_url: string;
+      version_label?: string;
+      created_by?: string;
+    }) =>
+      request<EvaluationRun>("/evaluations/", {
+        method: "POST",
+        body: JSON.stringify({ agent_type: "endpoint", ...payload }),
+      }),
+    findings: (id: string) => request<Finding[]>(`/evaluations/${id}/findings`),
+  },
+
+  releases: {
+    create: (evaluationRunId: string, createdBy?: string) =>
+      request<Release>("/releases/", {
+        method: "POST",
+        body: JSON.stringify({ evaluation_run_id: evaluationRunId, created_by: createdBy ?? "ui-user" }),
+      }),
+    get: (id: string) => request<Release>(`/releases/${id}`),
+    sign: (id: string, signerName: string, signerRole: string) =>
+      request<Release>(`/releases/${id}/sign`, {
+        method: "POST",
+        body: JSON.stringify({ signer_name: signerName, signer_role: signerRole }),
       }),
   },
 
