@@ -3,29 +3,32 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, type Rule, type AmbiguityFlag, type Policy } from "@/lib/api";
 
-const SEV_COLORS: Record<string, string> = {
-  critical: "#fef2f2",
-  high: "#fffbeb",
-  medium: "#f0fdf4",
-  low: "#f9fafb",
+const SEV_HEADER: Record<string, string> = {
+  critical: "rule-card-header-critical",
+  high:     "rule-card-header-high",
+  medium:   "rule-card-header-medium",
+  low:      "rule-card-header-low",
 };
-const SEV_TEXT: Record<string, string> = {
-  critical: "#991b1b",
-  high: "#92400e",
-  medium: "#166534",
-  low: "#6b7280",
+
+const SEV_BADGE: Record<string, string> = {
+  critical: "badge-critical",
+  high:     "badge-high",
+  medium:   "badge-medium",
+  low:      "badge-low",
 };
+
+const STATUS_BADGE: Record<string, string> = {
+  pending_review:    "badge-pending",
+  approved:          "badge-approved",
+  rejected:          "badge-rejected",
+  needs_resolution:  "badge-needs-resolution",
+};
+
 const STATUS_LABEL: Record<string, string> = {
-  pending_review: "Pending",
-  approved: "Approved",
-  rejected: "Rejected",
+  pending_review:   "Pending review",
+  approved:         "Approved",
+  rejected:         "Rejected",
   needs_resolution: "Needs resolution",
-};
-const STATUS_COLOR: Record<string, string> = {
-  pending_review: "#1e3a8a",
-  approved: "#166534",
-  rejected: "#991b1b",
-  needs_resolution: "#92400e",
 };
 
 export default function RulesPage({ params }: { params: { id: string } }) {
@@ -41,6 +44,7 @@ export default function RulesPage({ params }: { params: { id: string } }) {
   const [rejectNote, setRejectNote] = useState("");
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [resolutionText, setResolutionText] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
 
   async function reload() {
     const [r, f] = await Promise.all([
@@ -106,102 +110,134 @@ export default function RulesPage({ params }: { params: { id: string } }) {
   const critical = rules.filter((r) => r.status === "approved" && r.severity === "critical").length;
   const allApproved = rules.length > 0 && approved === rules.length && flags.length === 0;
 
+  const filtered = filterStatus === "all" ? rules : rules.filter((r) => r.status === filterStatus);
+
   return (
     <div>
-      <div style={{ marginBottom: 8 }}>
-        <Link href={`/workspace/${policy?.workspace_id ?? ""}`} style={{ color: "#1e3a8a", fontSize: 13 }}>← Workspace</Link>
+      {/* Breadcrumb */}
+      <div className="breadcrumb">
+        <Link href="/">Workspaces</Link>
+        <span>›</span>
+        <Link href={`/workspace/${policy?.workspace_id ?? ""}`}>Workspace</Link>
+        <span>›</span>
+        <span>{policy?.title ?? "Policy"}</span>
       </div>
-      <h1 style={{ fontSize: 20, fontWeight: 500, marginBottom: 4 }}>
-        {policy?.title ?? "Policy"} <span style={{ fontSize: 13, color: "#9ca3af", fontWeight: 400 }}>v{policy?.version}</span>
-      </h1>
 
-      {/* Stats bar */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      {/* Page header */}
+      <div className="page-header">
+        <h1>
+          {policy?.title ?? "Policy"}{" "}
+          <span style={{ fontSize: 14, color: "var(--text-3)", fontWeight: 400 }}>v{policy?.version}</span>
+        </h1>
+        <p>Review and approve extracted policy rules before running compliance tests.</p>
+      </div>
+
+      {/* Stats */}
+      <div className="stat-strip">
         {[
-          { label: "Rules", val: rules.length, color: "#1e3a8a" },
-          { label: "Approved", val: approved, color: "#166534" },
-          { label: "Critical (approved)", val: critical, color: "#991b1b" },
-          { label: "Ambiguity flags", val: flags.length, color: flags.length ? "#92400e" : "#9ca3af" },
+          { label: "Total rules", val: rules.length, color: "var(--text)" },
+          { label: "Approved", val: approved, color: "#15803d" },
+          { label: "Critical (approved)", val: critical, color: "#be123c" },
+          { label: "Ambiguity flags", val: flags.length, color: flags.length ? "#b45309" : "var(--text-3)" },
         ].map(({ label, val, color }) => (
-          <div key={label} style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 8, padding: "8px 14px", minWidth: 100 }}>
-            <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 2 }}>{label}</div>
-            <div style={{ fontSize: 20, fontWeight: 500, color }}>{val}</div>
+          <div key={label} className="stat-card">
+            <div className="stat-label">{label}</div>
+            <div className="stat-value" style={{ color }}>{val}</div>
           </div>
         ))}
       </div>
 
-      {/* Reviewer field */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 20 }}>
-        <span style={{ fontSize: 13, color: "#6b7280", whiteSpace: "nowrap" }}>Reviewing as:</span>
-        <input
-          value={reviewer}
-          onChange={(e) => setReviewer(e.target.value)}
-          placeholder="your.name@company.com"
-          style={{ padding: "6px 10px", border: "0.5px solid #d1d5db", borderRadius: 6, fontSize: 13, width: 240 }}
-        />
-      </div>
-
-      {/* Extract button */}
-      {rules.length === 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <button
-            onClick={handleExtract}
-            disabled={extracting}
-            style={{ padding: "9px 20px", background: "#1e3a8a", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, cursor: "pointer", opacity: extracting ? 0.6 : 1 }}
-          >
-            {extracting ? "Extracting rules…" : "Extract rules with Claude"}
-          </button>
-          {extractMsg && <p style={{ fontSize: 13, color: "#374151", marginTop: 8 }}>{extractMsg}</p>}
+      {/* Ready banner */}
+      {allApproved && (
+        <div className="alert alert-success">
+          <span>✓</span>
+          <span>All {approved} rules approved with no open ambiguity flags — ready to generate test scenarios.</span>
         </div>
       )}
 
-      {/* Ready banner */}
-      {allApproved && (
-        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 14, color: "#166534" }}>
-          All {approved} rules approved with no open ambiguity flags. Ready to generate scenarios.
+      {/* Extract button */}
+      {rules.length === 0 && (
+        <div className="card" style={{ padding: "32px 24px", textAlign: "center", marginBottom: 24 }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🤖</div>
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>No rules extracted yet</div>
+          <div style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 20 }}>
+            PolicyLens will call Claude to extract structured, testable rules from the policy document.
+          </div>
+          <button onClick={handleExtract} disabled={extracting} className="btn btn-primary">
+            {extracting ? "Extracting rules with Claude…" : "Extract rules with Claude"}
+          </button>
+          {extractMsg && (
+            <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 14 }}>{extractMsg}</p>
+          )}
+        </div>
+      )}
+
+      {/* Reviewer + filter toolbar */}
+      {rules.length > 0 && (
+        <div className="toolbar">
+          <span className="toolbar-label">Reviewing as:</span>
+          <input
+            value={reviewer}
+            onChange={(e) => setReviewer(e.target.value)}
+            placeholder="your.name@company.com"
+            className="input"
+            style={{ width: 220 }}
+          />
+          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            {["all", "pending_review", "approved", "rejected", "needs_resolution"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s)}
+                className="btn btn-ghost btn-sm"
+                style={{
+                  borderColor: filterStatus === s ? "var(--brand)" : undefined,
+                  color: filterStatus === s ? "var(--brand)" : undefined,
+                  fontWeight: filterStatus === s ? 600 : 400,
+                }}
+              >
+                {s === "all" ? "All" : STATUS_LABEL[s] ?? s}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
       {/* Ambiguity flags */}
       {flags.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 500, color: "#92400e", marginBottom: 10 }}>
-            Ambiguity flags — resolve before testing ({flags.length})
-          </h2>
-          <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 12 }}>
-            Scenario generation is blocked until all flags are resolved in writing.
-          </p>
+        <div style={{ marginBottom: 28 }}>
+          <div className="section-header" style={{ color: "#b45309" }}>
+            ⚑ Ambiguity flags — resolve before scenario generation ({flags.length})
+          </div>
+          <div className="alert alert-warning" style={{ marginBottom: 12 }}>
+            Scenario generation is blocked until all ambiguity flags are resolved in writing.
+          </div>
           {flags.map((flag) => (
-            <div key={flag.id} style={{ background: "#fffbeb", border: "0.5px solid #fde68a", borderRadius: 10, padding: "14px 16px", marginBottom: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: "#78350f", marginBottom: 4 }}>
+            <div key={flag.id} className="flag-card">
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#78350f", marginBottom: 8 }}>
                 Ambiguous clause
               </div>
-              <div style={{ fontSize: 12, fontStyle: "italic", color: "#92400e", marginBottom: 6, borderLeft: "2px solid #f59e0b", paddingLeft: 8 }}>
-                "{flag.flagged_clause}"
-              </div>
-              <div style={{ fontSize: 12, color: "#78350f", marginBottom: 10 }}>
-                Why flagged: {flag.flag_reason}
+              <div className="flag-clause">"{flag.flagged_clause}"</div>
+              <div className="flag-reason">
+                <strong>Why flagged:</strong> {flag.flag_reason}
               </div>
               {resolvingId === flag.id ? (
                 <div>
+                  <label className="field-label">Resolution (plain language)</label>
                   <textarea
                     value={resolutionText}
                     onChange={(e) => setResolutionText(e.target.value)}
                     placeholder="Write the intended behavior in plain language (min 20 chars)…"
                     rows={3}
-                    style={{ width: "100%", padding: "8px 10px", border: "0.5px solid #fcd34d", borderRadius: 6, fontSize: 12, boxSizing: "border-box", marginBottom: 8 }}
+                    className="textarea"
+                    style={{ marginBottom: 10, fontSize: 13 }}
                   />
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => handleResolve(flag.id)} style={{ padding: "6px 14px", background: "#166534", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, cursor: "pointer" }}>
-                      Submit resolution
-                    </button>
-                    <button onClick={() => setResolvingId(null)} style={{ padding: "6px 14px", background: "transparent", border: "0.5px solid #d1d5db", borderRadius: 6, fontSize: 12, cursor: "pointer" }}>
-                      Cancel
-                    </button>
+                    <button onClick={() => handleResolve(flag.id)} className="btn btn-success btn-sm">Submit resolution</button>
+                    <button onClick={() => setResolvingId(null)} className="btn btn-ghost btn-sm">Cancel</button>
                   </div>
                 </div>
               ) : (
-                <button onClick={() => setResolvingId(flag.id)} style={{ padding: "6px 14px", background: "#92400e", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, cursor: "pointer" }}>
+                <button onClick={() => setResolvingId(flag.id)} className="btn btn-sm" style={{ background: "#b45309", color: "#fff" }}>
                   Write resolution
                 </button>
               )}
@@ -210,122 +246,135 @@ export default function RulesPage({ params }: { params: { id: string } }) {
         </div>
       )}
 
-      {/* Rules table */}
-      {rules.length > 0 && (
+      {/* Rules list */}
+      {filtered.length > 0 && (
         <div>
-          <h2 style={{ fontSize: 15, fontWeight: 500, marginBottom: 10 }}>Extracted rules ({rules.length})</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {rules.map((rule) => (
-              <div key={rule.id} style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
-                <div style={{ background: SEV_COLORS[rule.severity] ?? "#f9fafb", padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "0.5px solid #e5e7eb" }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>{rule.rule_number}</span>
-                    <span style={{ fontSize: 11, fontWeight: 500, color: SEV_TEXT[rule.severity] ?? "#6b7280", background: "#fff", padding: "2px 8px", borderRadius: 10, border: "0.5px solid #e5e7eb" }}>
-                      {rule.severity}
-                    </span>
-                    <span style={{ fontSize: 11, fontWeight: 500, color: STATUS_COLOR[rule.status] ?? "#6b7280" }}>
-                      {STATUS_LABEL[rule.status] ?? rule.status}
-                    </span>
-                    {rule.has_open_ambiguity && (
-                      <span style={{ fontSize: 11, background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: 10 }}>
-                        ambiguity flag
-                      </span>
+          <div className="section-header">
+            Extracted rules — {filtered.length}{filterStatus !== "all" ? ` ${STATUS_LABEL[filterStatus] ?? filterStatus}` : ""} of {rules.length}
+          </div>
+          {filtered.map((rule) => (
+            <div key={rule.id} className="card rule-card">
+              {/* Rule header */}
+              <div className={`rule-card-header ${SEV_HEADER[rule.severity] ?? ""}`}>
+                <div className="rule-meta-row">
+                  <span className="rule-card-id">{rule.rule_number}</span>
+                  <span className={`badge ${SEV_BADGE[rule.severity] ?? ""}`}>{rule.severity}</span>
+                  <span className={`badge ${STATUS_BADGE[rule.status] ?? "badge-pending"}`}>
+                    {STATUS_LABEL[rule.status] ?? rule.status}
+                  </span>
+                  {rule.has_open_ambiguity && (
+                    <span className="badge badge-flag">⚑ ambiguity flag</span>
+                  )}
+                </div>
+                {rule.source_section && (
+                  <a
+                    href={rule.source_citation_url ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="source-link"
+                  >
+                    {rule.source_section}{rule.source_page ? ` p.${rule.source_page}` : ""} ↗
+                  </a>
+                )}
+              </div>
+
+              {/* Rule body */}
+              <div className="rule-card-body">
+                {editingId === rule.id ? (
+                  <div>
+                    <label className="field-label">Condition</label>
+                    <textarea
+                      defaultValue={rule.condition}
+                      onChange={(e) => setEditBuf((b) => ({ ...b, condition: e.target.value }))}
+                      rows={2}
+                      className="textarea"
+                      style={{ marginBottom: 10, fontSize: 13 }}
+                    />
+                    <label className="field-label">Action</label>
+                    <textarea
+                      defaultValue={rule.action}
+                      onChange={(e) => setEditBuf((b) => ({ ...b, action: e.target.value }))}
+                      rows={2}
+                      className="textarea"
+                      style={{ marginBottom: 12, fontSize: 13 }}
+                    />
+                    <div className="rule-actions">
+                      <button onClick={() => handleEditSave(rule.id)} className="btn btn-success btn-sm">Save and approve</button>
+                      <button onClick={() => { setEditingId(null); setEditBuf({}); }} className="btn btn-ghost btn-sm">Cancel</button>
+                    </div>
+                  </div>
+                ) : rejectingId === rule.id ? (
+                  <div>
+                    <label className="field-label">Rejection reason</label>
+                    <textarea
+                      value={rejectNote}
+                      onChange={(e) => setRejectNote(e.target.value)}
+                      placeholder="Explain why this rule is incorrect or a duplicate (min 10 chars)…"
+                      rows={2}
+                      className="textarea"
+                      style={{ marginBottom: 10, fontSize: 13, borderColor: "#fca5a5" }}
+                    />
+                    <div className="rule-actions">
+                      <button onClick={() => handleReject(rule.id)} className="btn btn-danger btn-sm">Confirm reject</button>
+                      <button onClick={() => { setRejectingId(null); setRejectNote(""); }} className="btn btn-ghost btn-sm">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="rule-if">
+                      <strong>IF</strong>
+                      {rule.condition}
+                    </div>
+                    <div className="rule-if">
+                      <strong>THEN</strong>
+                      {rule.action}
+                    </div>
+                    {rule.exception && (
+                      <div className="rule-exception">Exception: {rule.exception}</div>
+                    )}
+                    {rule.notes && (
+                      <div className="rule-citation">{rule.notes.substring(0, 200)}</div>
+                    )}
+
+                    {rule.status === "approved" ? (
+                      <div className="rule-approved-by">
+                        <span style={{ color: "#22c55e" }}>✓</span>
+                        Approved by {rule.reviewed_by}
+                      </div>
+                    ) : rule.status === "rejected" ? (
+                      <div style={{ fontSize: 12, color: "var(--red-text)", marginTop: 10 }}>
+                        ✗ Rejected by {rule.reviewed_by}
+                      </div>
+                    ) : (
+                      <div className="rule-actions">
+                        <button
+                          onClick={() => handleApprove(rule.id)}
+                          disabled={rule.has_open_ambiguity}
+                          className="btn btn-success btn-sm"
+                          title={rule.has_open_ambiguity ? "Resolve ambiguity flag first" : ""}
+                        >
+                          ✓ Approve
+                        </button>
+                        <button
+                          onClick={() => { setEditingId(rule.id); setEditBuf({ condition: rule.condition, action: rule.action }); }}
+                          className="btn btn-ghost btn-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setRejectingId(rule.id)}
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: "var(--red-text)", borderColor: "#fca5a5" }}
+                        >
+                          Reject
+                        </button>
+                      </div>
                     )}
                   </div>
-                  {rule.source_section && (
-                    <a
-                      href={rule.source_citation_url ?? "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ fontSize: 11, color: "#1e3a8a", textDecoration: "none" }}
-                    >
-                      {rule.source_section}{rule.source_page ? ` p.${rule.source_page}` : ""} ↗
-                    </a>
-                  )}
-                </div>
-
-                <div style={{ padding: "12px 14px" }}>
-                  {editingId === rule.id ? (
-                    <div>
-                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>Condition</label>
-                      <textarea
-                        defaultValue={rule.condition}
-                        onChange={(e) => setEditBuf((b) => ({ ...b, condition: e.target.value }))}
-                        rows={2}
-                        style={{ width: "100%", padding: "6px 8px", border: "0.5px solid #d1d5db", borderRadius: 6, fontSize: 13, boxSizing: "border-box", marginBottom: 8 }}
-                      />
-                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>Action</label>
-                      <textarea
-                        defaultValue={rule.action}
-                        onChange={(e) => setEditBuf((b) => ({ ...b, action: e.target.value }))}
-                        rows={2}
-                        style={{ width: "100%", padding: "6px 8px", border: "0.5px solid #d1d5db", borderRadius: 6, fontSize: 13, boxSizing: "border-box", marginBottom: 8 }}
-                      />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => handleEditSave(rule.id)} style={{ padding: "6px 14px", background: "#166534", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, cursor: "pointer" }}>Save and approve</button>
-                        <button onClick={() => { setEditingId(null); setEditBuf({}); }} style={{ padding: "6px 12px", background: "transparent", border: "0.5px solid #d1d5db", borderRadius: 6, fontSize: 12, cursor: "pointer" }}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : rejectingId === rule.id ? (
-                    <div>
-                      <textarea
-                        value={rejectNote}
-                        onChange={(e) => setRejectNote(e.target.value)}
-                        placeholder="Rejection reason (min 10 chars)…"
-                        rows={2}
-                        style={{ width: "100%", padding: "6px 8px", border: "0.5px solid #fca5a5", borderRadius: 6, fontSize: 12, boxSizing: "border-box", marginBottom: 8 }}
-                      />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => handleReject(rule.id)} style={{ padding: "6px 14px", background: "#991b1b", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, cursor: "pointer" }}>Confirm reject</button>
-                        <button onClick={() => { setRejectingId(null); setRejectNote(""); }} style={{ padding: "6px 12px", background: "transparent", border: "0.5px solid #d1d5db", borderRadius: 6, fontSize: 12, cursor: "pointer" }}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ fontSize: 13, marginBottom: 6 }}>
-                        <strong>If:</strong> {rule.condition}
-                      </div>
-                      <div style={{ fontSize: 13, marginBottom: rule.exception ? 6 : 0 }}>
-                        <strong>Then:</strong> {rule.action}
-                      </div>
-                      {rule.exception && (
-                        <div style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic", marginBottom: 6 }}>
-                          Exception: {rule.exception}
-                        </div>
-                      )}
-                      {rule.notes && (
-                        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4, borderLeft: "2px solid #e5e7eb", paddingLeft: 6 }}>
-                          {rule.notes.substring(0, 200)}
-                        </div>
-                      )}
-                      {rule.status !== "approved" && rule.status !== "rejected" && (
-                        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                          <button
-                            onClick={() => handleApprove(rule.id)}
-                            disabled={rule.has_open_ambiguity}
-                            style={{ padding: "5px 14px", background: "#166534", color: "#fff", border: "none", borderRadius: 6, fontSize: 12, cursor: rule.has_open_ambiguity ? "not-allowed" : "pointer", opacity: rule.has_open_ambiguity ? 0.5 : 1 }}
-                          >
-                            Approve
-                          </button>
-                          <button onClick={() => { setEditingId(rule.id); setEditBuf({ condition: rule.condition, action: rule.action }); }} style={{ padding: "5px 12px", background: "transparent", border: "0.5px solid #d1d5db", borderRadius: 6, fontSize: 12, cursor: "pointer" }}>
-                            Edit
-                          </button>
-                          <button onClick={() => setRejectingId(rule.id)} style={{ padding: "5px 12px", background: "transparent", border: "0.5px solid #fca5a5", borderRadius: 6, fontSize: 12, cursor: "pointer", color: "#991b1b" }}>
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                      {rule.status === "approved" && (
-                        <div style={{ fontSize: 12, color: "#166534", marginTop: 8 }}>
-                          Approved by {rule.reviewed_by}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

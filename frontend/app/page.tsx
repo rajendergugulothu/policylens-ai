@@ -24,47 +24,82 @@ export default function Home() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 22, fontWeight: 500, marginBottom: 4 }}>Workspaces</h1>
-      <p style={{ color: "#6b7280", marginBottom: 24, fontSize: 14 }}>
-        Each workspace tests one AI agent workflow against one policy.
-      </p>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. ShopFast Returns Agent v3"
-          style={{ flex: 1, padding: "8px 12px", border: "0.5px solid #d1d5db", borderRadius: 8, fontSize: 14 }}
-          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-        />
-        <button
-          onClick={handleCreate}
-          disabled={creating || !name.trim()}
-          style={{ padding: "8px 18px", background: "#1e3a8a", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, cursor: "pointer", opacity: creating ? 0.6 : 1 }}
-        >
-          {creating ? "Creating…" : "New workspace"}
-        </button>
+      {/* Page header */}
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+        <div>
+          <h1>Workspaces</h1>
+          <p>Each workspace tests one AI agent workflow against one policy document.</p>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. ShopFast Returns Agent v3"
+            className="input"
+            style={{ width: 280 }}
+            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+          />
+          <button
+            onClick={handleCreate}
+            disabled={creating || !name.trim()}
+            className="btn btn-primary"
+          >
+            {creating ? "Creating…" : "+ New workspace"}
+          </button>
+        </div>
       </div>
 
+      {/* Stats row */}
+      {!loading && workspaces.length > 0 && (
+        <div className="stat-strip">
+          {[
+            { label: "Total workspaces", val: workspaces.length, color: "var(--brand)" },
+            { label: "Refund workflows", val: workspaces.filter(w => w.workflow_type === "refund").length, color: "#15803d" },
+            { label: "Sandbox mode", val: workspaces.filter(w => w.is_sandbox).length, color: "#b45309" },
+          ].map(({ label, val, color }) => (
+            <div key={label} className="stat-card">
+              <div className="stat-label">{label}</div>
+              <div className="stat-value" style={{ color }}>{val}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Workspace list */}
       {loading ? (
-        <p style={{ color: "#9ca3af" }}>Loading…</p>
+        <div className="empty-state">
+          <div className="empty-state-desc">Loading workspaces…</div>
+        </div>
       ) : workspaces.length === 0 ? (
-        <p style={{ color: "#9ca3af", fontSize: 14 }}>No workspaces yet. Create one above.</p>
+        <div className="empty-state card" style={{ padding: "48px 20px" }}>
+          <div className="empty-state-icon">🏗️</div>
+          <div className="empty-state-title">No workspaces yet</div>
+          <div className="empty-state-desc">Create a workspace to start testing an AI agent against a policy.</div>
+        </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="ws-list">
           {workspaces.map((ws) => (
-            <Link
-              key={ws.id}
-              href={`/workspace/${ws.id}`}
-              style={{ textDecoration: "none", color: "inherit" }}
-            >
-              <div style={{ background: "#fff", border: "0.5px solid #e5e7eb", borderRadius: 10, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
-                <div>
-                  <div style={{ fontWeight: 500, marginBottom: 2 }}>{ws.name}</div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>{ws.workflow_type} · {ws.policy_count} polic{ws.policy_count === 1 ? "y" : "ies"}</div>
+            <Link key={ws.id} href={`/workspace/${ws.id}`} className="card-link">
+              <div className="card ws-card">
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 10,
+                    background: "var(--brand-light)", display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 18, flexShrink: 0,
+                  }}>🏢</div>
+                  <div>
+                    <div className="ws-card-title">{ws.name}</div>
+                    <div className="ws-card-meta">
+                      <span className={`badge badge-${ws.workflow_type === "refund" ? "approved" : "pending"}`}>{ws.workflow_type}</span>
+                      <span>·</span>
+                      <span>{ws.policy_count ?? 0} polic{(ws.policy_count ?? 0) === 1 ? "y" : "ies"}</span>
+                      {ws.is_sandbox && <><span>·</span><span style={{ color: "#b45309" }}>sandbox</span></>}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                  {new Date(ws.created_at).toLocaleDateString()}
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <div className="ws-card-date">{new Date(ws.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
+                  <div className="ws-card-arrow">›</div>
                 </div>
               </div>
             </Link>
