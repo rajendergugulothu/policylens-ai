@@ -19,7 +19,7 @@
 
 ## What is PolicyLens AI?
 
-Teams deploying AI agents test for capability — does it answer correctly? — but not compliance — does it follow *our specific policy?* The gap is subtle: a well-written agent gives plausible, confident answers that are still wrong under your rules. **PolicyLens extracts structured rules from your policy documents, generates test scenarios, evaluates your agent against every rule, and produces a launch-readiness report with dual sign-off before a single user is affected.**
+Teams deploying AI agents test for capability — does it answer correctly? — but not compliance — does it follow *our specific policy?* The gap is subtle: a well-written agent gives plausible, confident answers that are still wrong under your rules. **PolicyLens extracts structured rules from your policy documents, generates test scenarios and evaluates the agent against each approved, testable rule, and produces a launch-readiness report with dual sign-off before a single user is affected.**
 
 > **Upload your policy. Generate tests. Evaluate your agent. Ship with confidence.**
 
@@ -43,22 +43,22 @@ Teams deploying AI agents test for capability — does it answer correctly? — 
 - ⚖️ **Dual Evaluation Engine** — deterministic keyword matching for clear-cut cases, LLM judge fires only for inconclusive or critical results
 - 📋 **Launch-Readiness Report** — Ready / Conditionally Ready / Not Ready verdict with violation breakdown by severity
 - ✍️ **Dual Sign-Off** — two stakeholders must sign before a release is approved; same signer cannot sign twice, enforced at the service layer
-- 🔐 **Clerk Auth** — all routes JWT-protected; multi-tenant by design
+- 🔐 **Clerk Auth** — all routes JWT-protected; authenticated and architected for tenant-scoped data access
 
 ---
 
-## Real Violations Found
+## Policy Violations Identified in Testing
 
-During testing with a ShopFast returns agent — violations that would have reached production undetected:
+During a controlled e-commerce returns-policy simulation, PolicyLens identified several agent responses that violated the expected policy outcome despite sounding reasonable on the surface.
 
-| Scenario | Agent action | Policy says |
-|----------|-------------|-------------|
-| Final Sale damaged item | Cash refund approved | Store credit only |
-| Apple product holiday return | Jan 31 deadline applied | Jan 15 for Apple products |
+| Scenario | Agent action | Expected policy action |
+|----------|-------------|------------------------|
+| Final-sale damaged item | Cash refund approved | Store credit only |
+| Apple product holiday return | January 31 deadline applied | January 15 deadline |
 | Marketplace item return | Direct refund processed | Route to seller first |
-| Loyalty points purchase | Full refund as cash | Proportional split required |
+| Loyalty-points purchase | Full refund issued as cash | Proportional refund split |
 
-None caught by standard QA. All with real financial or legal consequences at scale.
+These scenarios represent policy edge cases that basic happy-path QA can easily miss. At scale, errors like these could create customer, financial, and operational risk.
 
 ---
 
@@ -84,6 +84,12 @@ None caught by standard QA. All with real financial or legal consequences at sca
 
 ---
 
+## Research and Evaluation Context
+
+PolicyLens AI was developed as an AI Product Management portfolio project using secondary research, structured persona simulations, and controlled policy-testing scenarios. The current implementation demonstrates product feasibility, AI evaluation design, and full-stack execution. It has not yet been validated with production customers or live enterprise agents.
+
+---
+
 ## Portfolio Context
 
 PolicyLens AI is the first project in an AI operations portfolio. The second, [ExceptionLoop](https://github.com/rajendergugulothu/exceptionloop), manages what breaks after deployment.
@@ -99,7 +105,17 @@ PolicyLens AI is the first project in an AI operations portfolio. The second, [E
 
 ## About
 
-Built as a full-stack production-grade compliance tool — covering LLM-powered document parsing, multi-stage evaluation pipelines, typed scenario generation, and a dual sign-off enforcement model with zero UI-level bypass.
+PolicyLens AI is a deployed, production-oriented portfolio MVP demonstrating:
+
+- LLM-powered policy extraction
+- Human-reviewed structured rules
+- Typed scenario generation
+- Hybrid deterministic and LLM-based evaluation
+- Severity-based release gating
+- Dual sign-off enforced at the backend
+- Authenticated full-stack deployment
+
+The project was built to demonstrate how AI agents can be tested against organization-specific policies before receiving production authority.
 
 **Built by [Rajender Gugulothu](https://github.com/rajendergugulothu)**
 
