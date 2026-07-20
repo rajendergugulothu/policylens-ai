@@ -19,7 +19,11 @@
 
 ## What is PolicyLens AI?
 
-Teams deploying AI agents test for capability — does it answer correctly? — but not compliance — does it follow *our specific policy?* The gap is subtle: a well-written agent gives plausible, confident answers that are still wrong under your rules. **PolicyLens extracts structured rules from your policy documents, generates test scenarios and evaluates the agent against each approved, testable rule, and produces a launch-readiness report with dual sign-off before a single user is affected.**
+Teams deploying AI agents test for capability — does the agent answer correctly? — but not always for compliance — does it follow our specific policy?
+
+The gap is subtle: an agent can give plausible, confident answers that are still wrong under an organization's rules.
+
+**PolicyLens extracts structured rules from policy documents, generates test scenarios, evaluates the agent against each approved, testable rule, and produces a launch-readiness report with dual sign-off before production approval.**
 
 > **Upload your policy. Generate tests. Evaluate your agent. Ship with confidence.**
 
@@ -39,7 +43,7 @@ Teams deploying AI agents test for capability — does it answer correctly? — 
 
 - 📄 **Structured Rule Extraction** — Claude parses policy documents into typed IF/THEN rules with condition, action, exception, and severity
 - 🚩 **Ambiguity Flagging** — rules whose correct action depends on unstated context are flagged and block testing until resolved by a human
-- 🧪 **Scenario Generation** — normal, edge, and adversarial test cases generated per rule, covering the exact failure modes standard QA misses
+- 🧪 **Scenario Generation** — normal, edge, and adversarial test cases generated per rule, covering policy edge cases and combinations that basic happy-path QA may miss
 - ⚖️ **Dual Evaluation Engine** — deterministic keyword matching for clear-cut cases, LLM judge fires only for inconclusive or critical results
 - 📋 **Launch-Readiness Report** — Ready / Conditionally Ready / Not Ready verdict with violation breakdown by severity
 - ✍️ **Dual Sign-Off** — two stakeholders must sign before a release is approved; same signer cannot sign twice, enforced at the service layer
@@ -60,6 +64,8 @@ During a controlled e-commerce returns-policy simulation, PolicyLens identified 
 
 These scenarios represent policy edge cases that basic happy-path QA can easily miss. At scale, errors like these could create customer, financial, and operational risk.
 
+> **Evaluation note:** These findings came from a small, manually designed simulation. They demonstrate the workflow and types of policy risks PolicyLens is intended to detect; they do not represent production model accuracy or statistically validated performance.
+
 ---
 
 ## Tech Stack
@@ -68,7 +74,7 @@ These scenarios represent policy edge cases that basic happy-path QA can easily 
 
 **Frontend** — Next.js 14 (App Router) · TypeScript · Clerk Auth
 
-**Infrastructure** — Docker Compose · PostgreSQL
+**Infrastructure** — Vercel · Render · Neon PostgreSQL · Docker Compose
 
 ---
 
@@ -86,7 +92,7 @@ These scenarios represent policy edge cases that basic happy-path QA can easily 
 
 ## Research and Evaluation Context
 
-PolicyLens AI was developed as an AI Product Management portfolio project using secondary research, structured persona simulations, and controlled policy-testing scenarios. The current implementation demonstrates product feasibility, AI evaluation design, and full-stack execution. It has not yet been validated with production customers or live enterprise agents.
+PolicyLens AI was developed as an AI Product Management portfolio project using secondary research, structured persona simulations, and controlled policy-testing scenarios. The current implementation demonstrates product feasibility, AI evaluation design, and full-stack execution. It has not yet been validated with production customers, live enterprise agents, or confirmed design partners.
 
 ---
 
@@ -99,7 +105,7 @@ PolicyLens AI is the first project in an AI operations portfolio. The second, [E
 | **When** | Before deployment | After deployment |
 | **What** | Tests agents against policy | Manages escalations + learns from them |
 | **Output** | Launch-readiness report | Automation pipeline |
-| **North Star** | % decisions proven safe before prod | % recurring exceptions converted to automation |
+| **North Star** | % critical policy rules tested successfully before production | % recurring exceptions converted to automation |
 
 ---
 
@@ -109,6 +115,7 @@ PolicyLens AI is a deployed, production-oriented portfolio MVP demonstrating:
 
 - LLM-powered policy extraction
 - Human-reviewed structured rules
+- Ambiguity detection and human resolution
 - Typed scenario generation
 - Hybrid deterministic and LLM-based evaluation
 - Severity-based release gating
